@@ -14,7 +14,11 @@ Screenshots use the built-in sample data.
 ## What it does
 
 - **Log:** a ping on every :00 and :30. Type or hold the red key to speak, set a score, press log it. The screen opens on the
-  half hour you last left off and walks you forward through anything you missed.
+  half hour you last left off and walks you forward through anything you missed. Same again repeats your last entry in one press.
+- **The disc:** it turns by itself. Pull it back or fling it with a finger, and it speeds up while you record. Only the small
+  knob changes the score.
+- **Several half hours at once:** say or type "from 2 to 3 building, then coffee till 4". The app shows each span to check before
+  it saves, and never overwrites an entry. This runs on the phone and reads clear English times; anything unclear saves as one entry.
 - **Log ahead:** about to do the same thing for a while? The slider saves the next 30 minutes, 1 hour or 2 hours too.
 - **Today:** a 24-hour dial with one bar per half hour. Tap a bar to read it. Hold and drag to pick several, then fill in the
   empty ones together. Below it: high, medium and low productivity hours, time per category, and the day's log.

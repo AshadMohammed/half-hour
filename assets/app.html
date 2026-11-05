@@ -78,6 +78,13 @@ button:focus-visible,[tabindex]:focus-visible,input:focus-visible{outline:2px so
 .sheet .row2 span{font:500 12px/1.3 'Barlow Semi Condensed';color:#4a4b4e}
 .sheet .row3{display:flex;align-items:center;gap:14px;margin-top:10px}
 .sheet .row3 .pill{position:relative;left:0;top:0;flex:1}
+#span-rows{max-height:238px;overflow:auto;overscroll-behavior:contain}
+.span-row{display:grid;grid-template-columns:1fr auto;gap:3px 10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,.14)}
+.span-row b{font:700 15px/1 'Barlow Semi Condensed';color:#17181a}
+.span-row .span-when{font:600 12px/1 'Barlow Semi Condensed';color:#4a4b4e}
+.span-row .span-what{grid-column:1;font:500 14px/1.2 'Barlow Semi Condensed';color:#17181a;overflow-wrap:anywhere}
+.span-row .span-score{grid-column:2;grid-row:2;font:700 16px/1 'Barlow Semi Condensed';color:#17181a;text-align:right}
+#span-existing{min-height:16px;margin-top:8px;font:600 12px/1.2 'Barlow Semi Condensed';color:#4a4b4e}
 .nav{position:absolute;left:14px;right:14px;bottom:6px;height:52px;z-index:5;overflow:hidden;border-radius:12px;background:linear-gradient(#e1e2e3,#c8c9cb);box-shadow:inset 0 1px #fff,inset 0 -2px #9d9ea0;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 .nav:before{content:'';position:absolute;inset:10px;border:1px solid #9b9da0;border-radius:7px;background:#c8c9cb}
 .nav:after{content:'';position:absolute;z-index:2;left:50%;top:50%;width:76px;height:32px;transform:translate(-50%,-50%);border:1px solid #989a9d;border-radius:6px;background:linear-gradient(#d6d7d8,#c1c2c4);box-shadow:inset 0 1px #fff8;pointer-events:none}
@@ -260,7 +267,10 @@ button:focus-visible,[tabindex]:focus-visible,input:focus-visible{outline:2px so
       <button type="button" class="tk" id="log-next" aria-label="later half hour">›</button>
     </div>
     <div class="kick" id="log-date">tue 27 oct</div>
-    <svg class="disc" id="log-disc" viewBox="0 0 330 330"><g id="log-dial"></g><circle class="hit" id="log-hit" cx="165" cy="165" r="125" fill="transparent" tabindex="0" role="slider" aria-label="score, spin to set"></circle></svg>
+    <svg class="disc" id="log-disc" viewBox="0 0 330 330" aria-label="log score dial">
+      <g id="log-ticks"></g><g id="log-platter"></g><g id="log-knob"></g><g id="log-hub"></g>
+      <circle class="hit" id="log-hit" cx="165" cy="165" r="150" fill="transparent" tabindex="0" role="slider" aria-label="turn the platter or drag the score knob"></circle>
+    </svg>
     <input class="entry" id="log-text" value="" placeholder="what were you doing?" aria-label="what you did" autocapitalize="sentences" spellcheck="false" autocomplete="off">
     <div class="plan" id="log-plan"></div>
     <button class="rk big rec" id="log-rec" aria-label="rec, hold to speak"><span class="led"></span><i></i></button>
@@ -318,6 +328,12 @@ button:focus-visible,[tabindex]:focus-visible,input:focus-visible{outline:2px so
     <div class="row2"><button class="rk sm rec" id="sheet-rec" aria-label="rec, hold to speak"><span class="led"></span><i></i></button><span id="sheet-hint">hold to speak · it types itself in</span></div>
     <div class="row3"><svg id="sheet-score" width="150" height="48" viewBox="0 0 150 48" tabindex="0" role="slider" aria-label="score" style="touch-action:none"></svg><button class="pill or" id="sheet-ok">log it</button></div>
   </div>
+  <div class="sheet" id="span-sheet" hidden role="dialog" aria-modal="true" aria-label="review time spans">
+    <div class="grab"></div>
+    <div class="shh"><b>log this?</b><button type="button" id="span-x" aria-label="close">×</button></div>
+    <div id="span-rows"></div><div id="span-existing"></div>
+    <div class="row3"><button type="button" class="pill or" id="span-ok">log it</button></div>
+  </div>
 </div>
 
 <script>
@@ -337,6 +353,7 @@ const tx=(t,x,y,sz,fill,wt=600,anc='middle',ex='')=>`<text x="${x}" y="${y}" tex
 const RIDGES=(()=>{let s='';for(let i=0;i<120;i++)s+=lineP(113,125,i*3,i%2?'#8E8F92':'#EDEEEF',1.7);return s})();
 function platter(o={}){let g=`<g ${o.cls?`class="${o.cls}"`:''}><circle cx="${C}" cy="${C}" r="125.5" fill="#A9AAAD"/><circle cx="${C}" cy="${C}" r="124.5" fill="#C3C4C6"/>${RIDGES}<circle cx="${C}" cy="${C}" r="113" fill="#A5A6A8"/><circle cx="${C}" cy="${C}" r="112" fill="${FACE}"/>`;
  [100,88,76,64].forEach(r=>{g+=`<circle cx="${C}" cy="${C}" r="${r}" fill="none" stroke="rgba(0,0,0,.07)" stroke-width="1"/>`});
+ if(o.marks){g+=arcP(96,28,43,'#9D9EA1',1.4)+arcP(96,208,218,'#F0F1F2',1.2)}
  if(o.dimple){const d=pol(80,0);g+=`<circle cx="${d[0]}" cy="${d[1]}" r="16" fill="#C9CACC"/><circle cx="${d[0]}" cy="${d[1]}" r="16" fill="none" stroke="#9C9DA0" stroke-width="1.4"/><path d="M${d[0]-13} ${d[1]+3}A13.5 13.5 0 0 0 ${d[0]+13} ${d[1]+3}" fill="none" stroke="#fff" stroke-width="1.4" opacity=".9"/><circle cx="${d[0]}" cy="${d[1]}" r="11" fill="#BDBEC1"/>`}
  if(o.notch)g+=lineP(100,112,0,OR,3.5);
  return g+'</g>'}
@@ -395,10 +412,162 @@ function hm12(i){i=((i%48)+48)%48;const h=Math.floor(i/2),hh=h%12||12;return hh+
 function range12(a,z){return a===z?hm12(a):hm12(a)+' – '+hm12(z+1)}
 function span12(a,z){const start=hm12(a),end=hm12(z);return start.slice(-2)===end.slice(-2)?start.slice(0,-3)+' – '+end:start+' – '+end}
 
+/* Read explicit half-hour spans from a sentence. The returned blocks are local-time block keys. */
+function parseSpans(text,block){
+  const source=String(text||'').trim();
+  if(!source||/\bnext\b/i.test(source)||!block)return null;
+  const hourNames={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
+  const hourAlt='12|11|10|[1-9]|twelve|eleven|ten|nine|eight|seven|six|five|four|three|two|one';
+  const timeSrc='(?:noon|midnight|half\\s+past\\s+(?:'+hourAlt+')(?:\\s+(?:thirty|30))?|(?:'+hourAlt+')(?:\\s*:\\s*(?:00|30)|\\s+(?:thirty|00|30))?\\s*(?:a\\.?m\\.?|p\\.?m\\.?)?)';
+  const timeCapture='('+timeSrc+')';
+  const durationAlt='(?:half\\s+(?:an?\\s+)?hour|(?:an?|one)\\s+hour(?:\\s+and\\s+(?:a\\s+)?half)?|one\\s+and\\s+a\\s+half\\s+hours?|(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\\s+hours?|(?:30|60|90|120|150|180|210|240|270|300|330|360|390|420|450|480|510|540|570|600|630|660|690|720)\\s+minutes?)';
+  const cleanEnd=s=>String(s||'').trim().replace(/[\s.,;!?]+$/,'');
+  const splitPieces=[];
+  source.split(/\s*(?:\b(?:and\s+)?then\b|\bafter\s+that\b|;)\s*/i).forEach(group=>{
+    const commaRe=new RegExp(',\\s*(?=(?:from\\s+)?'+timeSrc+'\\s+to\\b)','i');
+    group.split(commaRe).forEach(p=>splitPieces.push(cleanEnd(p)));
+  });
+  if(splitPieces.some(p=>!p))return null;
+  const words={an:1,a:1,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
+  function parseClock(raw){
+    let s=String(raw).trim().toLowerCase().replace(/\./g,'');
+    if(s==='noon')return {hour:12,minute:0,meridiem:'pm',fixed:true};
+    if(s==='midnight')return {hour:12,minute:0,meridiem:'am',fixed:true};
+    let meridiem=null;
+    const mark=s.match(/\s*(am|pm)$/);if(mark){meridiem=mark[1];s=s.slice(0,mark.index).trim()}
+    let minute=0;
+    if(/^half\s+past\s+/.test(s)){minute=30;s=s.replace(/^half\s+past\s+/,'')}
+    else{
+      let m=s.match(/^(.*?)\s*:\s*(00|30)$/);
+      if(m){s=m[1].trim();minute=+m[2]}
+      else if(/\s+(?:thirty|30)$/.test(s)){minute=30;s=s.replace(/\s+(?:thirty|30)$/,'')}
+      else if(/\s+00$/.test(s)){s=s.replace(/\s+00$/,'')}
+    }
+    const hour=hourNames[s]||(/^\d+$/.test(s)?+s:0);
+    if(hour<1||hour>12)return null;
+    return {hour,minute,meridiem, fixed:false};
+  }
+  function durationMinutes(raw){
+    const s=String(raw).trim().toLowerCase().replace(/\s+/g,' ');
+    if(/^half\s+(?:an?\s+)?hour$/.test(s))return 30;
+    if(/^(?:an?|one)\s+hour\s+and\s+(?:a\s+)?half$/.test(s)||/^one\s+and\s+a\s+half\s+hours?$/.test(s))return 90;
+    let m=s.match(/^(an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+hours?$/);
+    if(m)return (words[m[1]]||1)*60;
+    m=s.match(/^(\d+)\s+minutes?$/);if(m&&+m[1]<=720)return +m[1];
+    return null;
+  }
+  function scoreTail(s){
+    const m=s.match(/\s+(?:score\s+)?(1|2|3|4|5|one|two|three|four|five)\s*$/i);
+    if(!m)return {text:s,score:null};
+    const val={one:1,two:2,three:3,four:4,five:5};
+    return {text:s.slice(0,m.index).trim(),score:/^\d$/.test(m[1])?+m[1]:val[m[1].toLowerCase()]};
+  }
+  function tidyActivity(s){
+    s=String(s||'').trim();
+    let old='';while(s!==old){old=s;s=s.replace(/^(?:i\s+was|i\s+did|was|did|and)\b\s*/i,'')}
+    return s.replace(/^[\s,;:]+|[\s.,;:!?]+$/g,'').trim();
+  }
+  const pieces=[];
+  let sawTime=false;
+  for(const raw of splitPieces){
+    const p=cleanEnd(raw);let kind='none',activity=p,firstRaw=null,lastRaw=null,duration=0;
+    let m=p.match(new RegExp('^(?:from\\s+)?'+timeCapture+'\\s+to\\s+'+timeCapture+'\\s+(.+)$','i'));
+    if(m){kind='range';firstRaw=m[1];lastRaw=m[2];activity=m[3]}
+    else if((m=p.match(new RegExp('^(.+?)\\s+(?:from\\s+)?'+timeCapture+'\\s+to\\s+'+timeCapture+'$','i')))){
+      kind='range';activity=m[1];firstRaw=m[2];lastRaw=m[3];
+    }else if((m=p.match(new RegExp('^(.+?)\\s+(?:till|until)\\s+'+timeCapture+'(?:\\s+(?:score\\s+)?(1|2|3|4|5|one|two|three|four|five))?$','i')))){
+      kind='till';activity=m[1];lastRaw=m[2];if(m[3])activity+=' '+m[3];
+    }else if((m=p.match(new RegExp('^(.+?)\\s+for\\s+('+durationAlt+')(?:\\s+(?:score\\s+)?(1|2|3|4|5|one|two|three|four|five))?$','i')))){
+      duration=durationMinutes(m[2]);
+      if(duration){kind='duration';activity=m[1]+(m[3]?' '+m[3]:'')}
+    }
+    if(kind!=='none')sawTime=true;
+    else if(/\b(?:from|till|until)\b/i.test(p))return null;
+    const scored=scoreTail(activity);activity=tidyActivity(scored.text);
+    if(!activity)return null;
+    pieces.push({kind,activity,score:scored.score,firstRaw,lastRaw,duration});
+  }
+  if(!sawTime)return null;
+  const blockStart=bDate(block).getTime(),blockEnd=blockStart+1800000;
+  const startOfDay=new Date(bDate(block).getFullYear(),bDate(block).getMonth(),bDate(block).getDate()).getTime();
+  const periodMinute=(clock,period)=>{
+    if(clock.fixed)return period==='pm'?12*60:0;
+    let h=clock.hour%12;if(period==='pm')h+=12;return h*60+clock.minute;
+  };
+  const periodFor=(clock,fallback)=>clock.meridiem||fallback||null;
+  function nearestBefore(clock,reference,period){
+    const periods=clock.meridiem?[clock.meridiem]:(period?[period]:['am','pm']);
+    let best=null;
+    for(const dayOffset of [-1,0,1])for(const per of periods){
+      const value=startOfDay+dayOffset*86400000+periodMinute(clock,per)*60000;
+      if(value<=reference&&(best==null||value>best))best=value;
+    }
+    if(best==null)return null;
+    return {value:best,meridiem:clock.meridiem||period||((new Date(best).getHours()>=12)?'pm':'am')};
+  }
+  function afterStart(clock,start,period){
+    const per=periodFor(clock,period)||((new Date(start).getHours()>=12)?'pm':'am');
+    const startDay=new Date(start);const midnight=new Date(startDay.getFullYear(),startDay.getMonth(),startDay.getDate()).getTime();
+    let value=midnight+periodMinute(clock,per)*60000;
+    if(value<=start)value+=12*3600000;
+    return {value,meridiem:new Date(value).getHours()>=12?'pm':'am'};
+  }
+  const floorHalf=n=>Math.floor(n/1800000)*1800000;
+  const nearHalf=n=>Math.round(n/1800000)*1800000;
+  const blocks=[],durationsOnly=pieces.every(p=>p.kind==='duration');
+  let carry=null,previousEnd=null;
+  if(durationsOnly){
+    let cursor=blockEnd;
+    for(let i=pieces.length-1;i>=0;i--){const p=pieces[i];p.end=cursor;p.start=cursor-p.duration*60000;cursor=p.start}
+  }else{
+    for(let i=0;i<pieces.length;i++){
+      const p=pieces[i];let start,end;
+      if(p.kind==='range'){
+        const a=parseClock(p.firstRaw),z=parseClock(p.lastRaw);if(!a||!z)return null;
+        const inherited=carry||z.meridiem||null;
+        const resolvedStart=nearestBefore(a,blockEnd,a.meridiem||inherited||z.meridiem);
+        if(!resolvedStart)return null;
+        start=resolvedStart.value;
+        const endPeriod=z.meridiem||a.meridiem||carry||resolvedStart.meridiem;
+        const resolvedEnd=afterStart(z,start,endPeriod);end=resolvedEnd.value;
+        if(i===0)carry=resolvedEnd.meridiem||resolvedStart.meridiem;
+      }else if(p.kind==='till'){
+        const z=parseClock(p.lastRaw);if(!z)return null;
+        start=previousEnd==null?blockStart:previousEnd;
+        const period=carry||z.meridiem||((new Date(start).getHours()>=12)?'pm':'am');
+        const resolvedEnd=afterStart(z,start,period);end=resolvedEnd.value;
+        if(i===0)carry=resolvedEnd.meridiem;
+      }else if(p.kind==='duration'){
+        if(previousEnd==null)return null;
+        start=previousEnd;end=start+p.duration*60000;
+      }else{
+        if(previousEnd==null)return null;
+        start=previousEnd;end=blockEnd;
+      }
+      p.start=start;p.end=end;
+      previousEnd=nearHalf(end);
+    }
+  }
+  let total=0,lastStart=-Infinity,lastEnd=-Infinity;
+  for(const p of pieces){
+    let start=floorHalf(p.start),end=nearHalf(p.end);
+    if(end<=start)end=start+1800000;
+    const length=end-start;
+    if(length<1800000||length>12*3600000||start<lastStart||start<lastEnd)return null;
+    total+=length;if(total>12*3600000)return null;
+    const startKey=fmtBlock(new Date(start)),endKey=fmtBlock(new Date(end));
+    blocks.push({start:startKey,end:endKey,text:p.activity,score:p.score});
+    lastStart=start;lastEnd=end;previousEnd=end;
+  }
+  if(blocks.length===1&&blocks[0].start===block&&blocks[0].end===bAdd(block,30))return null;
+  return blocks;
+}
+
 /* ---------- state ---------- */
 const S={screen:'log',block:'',nudgeBlock:'',text:'',score:3,plan:'',ahead:0,
   info:null,sel:[],glide:null,speechTarget:'',speaking:false,lastPartial:'',sheetScore:6,sheetSel:[],
-  todayDay:dateKey(new Date()),weekEnd:dateKey(new Date()),timeMode:'week',timeEnd:dateKey(new Date())};
+  todayDay:dateKey(new Date()),weekEnd:dateKey(new Date()),timeMode:'week',timeEnd:dateKey(new Date()),
+  spanPending:null,spanDismissText:'',recordHeld:false};
 
 /* ---------- sample log, so the page is never empty in a browser ---------- */
 function sampleEntries(){
@@ -547,6 +716,7 @@ function beginSpeech(target){
   if(S.speaking)return;
   S.speechTarget=SPEECH[target]?target:'log';
   S.speaking=true;
+  if(S.speechTarget==='log')S.recordHeld=true;
   S.lastPartial='';
   window.clearTimeout(speechTimer);
   speechUI(S.speechTarget,'wait');
@@ -560,6 +730,7 @@ function endSpeech(){
   /* the finger is up, but the mic stays open a moment longer, so the label keeps its state */
   lg('endSpeech','speaking',S.speaking);
   if(!S.speaking)return;
+  if(S.speechTarget==='log')S.recordHeld=false;
   if(hai){try{hai.stopSpeech()}catch(e){}}
   window.clearTimeout(speechTimer);
   speechTimer=window.setTimeout(()=>{if(S.speaking){lg('speech gave up: no result 5 s after release');S.speaking=false;resetSpeechUI()}},5000);
@@ -567,6 +738,7 @@ function endSpeech(){
 function finishSpeech(){
   window.clearTimeout(speechTimer);
   S.speaking=false;
+  S.recordHeld=false;
   resetSpeechUI();
 }
 function speechError(m){
@@ -598,16 +770,19 @@ function applySpeech(text,final){
   }
   const sp=splitPlan(said);
   if(t==='nudge'){
-    S.block=S.nudgeBlock||S.block;
-    S.text=sp.text||said;
+    const target=S.nudgeBlock||S.block;
+    go('log');openLog(target);
+    S.text=sp.text||said;document.getElementById('log-text').value=S.text;
     if(sp.plan)setPlan(sp.plan);
-    go('log');
+    drawPlanLine();drawSaveState();S.spanDismissText='';
+    const spans=parseSpans(S.text,S.block);if(spans)openSpanSheet(spans);
     return;
   }
   S.text=sp.text;
   if(sp.plan)setPlan(sp.plan);
   document.getElementById('log-text').value=S.text;
-  drawPlanLine();drawSaveState();
+  drawPlanLine();drawSaveState();S.spanDismissText='';
+  const spans=parseSpans(S.text,S.block);if(spans)openSpanSheet(spans);
 }
 window.HHcb={
   partial:function(t){lg('cb partial len',(t||'').length,'speaking',S.speaking);if(!S.speaking)return;applySpeech(t,false)},
@@ -627,6 +802,25 @@ function scoreDial(score){
   const pos=Math.max(1,Math.min(5,+score||3))-1;
   return scale270(5,labs,pos)+`<g transform="rotate(${-135+pos*67.5} ${C} ${C})">`+platter({dimple:true,notch:true})+'</g>'+hub(String(pos+1),66,'score');
 }
+let logDiscDrawn=false;
+function drawLogStatics(){
+  if(logDiscDrawn)return;
+  const labs={0:'1',1:'2',2:'3',3:'4',4:'5'};
+  document.getElementById('log-ticks').innerHTML=scale270(5,labs,-1);
+  document.getElementById('log-platter').innerHTML=platter({marks:true});
+  logDiscDrawn=true;
+  drawLogScore();
+}
+function drawLogPlatter(angle){
+  const el=document.getElementById('log-platter');
+  if(el)el.setAttribute('transform',`rotate(${angle.toFixed(2)} ${C} ${C})`);
+}
+function drawLogScore(){
+  const pos=Math.max(1,Math.min(5,+S.score||3))-1,angle=-135+pos*67.5,d=pol(80,0);
+  document.getElementById('log-knob').innerHTML=`<g transform="rotate(${angle} ${C} ${C})">${lineP(56,138,0,OR,2.5)}<circle cx="${pol(138,0)[0]}" cy="${pol(138,0)[1]}" r="3" fill="${OR}"/><circle cx="${d[0]}" cy="${d[1]}" r="16" fill="#C9CACC"/><circle cx="${d[0]}" cy="${d[1]}" r="16" fill="none" stroke="#9C9DA0" stroke-width="1.4"/><path d="M${d[0]-13} ${d[1]+3}A13.5 13.5 0 0 0 ${d[0]+13} ${d[1]+3}" fill="none" stroke="#fff" stroke-width="1.4" opacity=".9"/><circle cx="${d[0]}" cy="${d[1]}" r="11" fill="#BDBEC1"/></g>`;
+  document.getElementById('log-hub').innerHTML=hub(String(pos+1),66,'score');
+  const hit=document.getElementById('log-hit');if(hit)hit.setAttribute('aria-valuenow',String(pos+1));
+}
 function drawPlanLine(){
   const el=document.getElementById('log-plan');
   const plan=cleanPlan(S.plan);
@@ -639,7 +833,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','
 function renderLog(){
   const aheadCount=[1,2,3,5][S.ahead||0],lastBlock=bAdd(S.block,30*(aheadCount-1));
   document.getElementById('log-block').textContent=(aheadCount===1?rangeTxt(S.block):span12(idxOf(S.block),idxOf(lastBlock)+1));
-  document.getElementById('log-dial').innerHTML=scoreDial(S.score);
+  drawLogStatics();drawLogScore();
   const inp=document.getElementById('log-text');
   if(document.activeElement!==inp)inp.value=S.text;
   drawPlanLine();drawSlider();drawLogFoot();drawSaveState();
@@ -687,7 +881,7 @@ function setLogScore(v,fromDrag){
   if(v===S.score)return;
   S.score=v;
   hh('score');
-  document.getElementById('log-dial').innerHTML=scoreDial(S.score);
+  drawLogScore();
   drawSaveState();
 }
 function pickBlock(){return leftOff()}
@@ -706,23 +900,66 @@ function openLog(block){
   S.score=e?+e.score:3;
   S.plan=cleanPlan(e&&e.plan)||(hai?cleanPlan(hai.plan(bAdd(S.block,30))):'');
   S.info=null;
-  
+  S.spanDismissText='';S.spanPending=null;
   renderLog();
 }
-function logIt(){
-  const text=(S.text||'').trim()||'logged',counts=[1,2,3,5],blocks=[];
-  for(let i=0;i<counts[S.ahead||0];i++)blocks.push(bAdd(S.block,30*i));
-  const payloads=[];
-  blocks.forEach((block,i)=>{if(i===0||!entryAt(block))payloads.push({block,text,score:S.score,plan:i===blocks.length-1?cleanPlan(S.plan):'',via:'app'})});
+function spanTimeLabel(span){
+  const a=bDate(span.start),z=bDate(span.end),dayChange=dateKey(a)!==dateKey(z);
+  return clock12(a)+' '+ampm(a)+' – '+clock12(z)+' '+ampm(z)+(dayChange?' · '+dayTxt(a):'');
+}
+function openSpanSheet(spans){
+  S.spanPending={spans:spans,text:S.text,block:S.block};S.ahead=0;drawSlider();
+  document.getElementById('span-rows').innerHTML=spans.map((span,i)=>`<div class="span-row"><b>${spanTimeLabel(span)}</b><span class="span-score">${span.score==null?S.score:span.score}</span><span class="span-what">${esc(span.text)}</span></div>`).join('');
+  let existing=0;
+  spans.forEach(span=>{for(let b=span.start;b<span.end;b=bAdd(b,30))if(entryAt(b))existing++});
+  document.getElementById('span-existing').textContent=existing?existing+' already logged, they stay':'';
+  document.getElementById('span-sheet').hidden=false;
+  hh('confirm');
+}
+function closeSpanSheet(cancelled){
+  const sheet=document.getElementById('span-sheet');if(sheet)sheet.hidden=true;
+  if(cancelled&&S.spanPending)S.spanDismissText=S.spanPending.text;
+  S.spanPending=null;
+}
+function saveLogPayloads(payloads,first,fallbackLast){
   payloads.forEach(p=>{if(hai){try{hai.save(JSON.stringify(p))}catch(e){}}else saveLocal(p)});
-  loadData();hh('confirm');S.ahead=0;
-  const first=S.block,last=payloads.length?payloads[payloads.length-1].block:first;
+  loadData();hh('confirm');S.ahead=0;S.spanDismissText='';
+  const last=payloads.length?payloads[payloads.length-1].block:(fallbackLast||first);
   openLog(first);drawSlider();
   let next='',b=bAdd(last,30),limit=0;
   while(b<=floorBlock(Date.now())&&limit++<336){if(isPending(b)){next=b;break}b=bAdd(b,30)}
   if(!next&&isPending(bAdd(first,-30)))next=bAdd(first,-30);
   window.clearTimeout(S.hopTimer);
   if(next){S.block=last;window.setTimeout(()=>{if(S.screen==='log'){hh('slice');openLog(next)}},650)}
+}
+function confirmSpanSheet(){
+  const pending=S.spanPending;if(!pending)return;
+  const payloads=[];
+  pending.spans.forEach(span=>{
+    for(let b=span.start;b<span.end;b=bAdd(b,30)){
+      if(entryAt(b))continue;
+      payloads.push({block:b,text:span.text,score:span.score==null?S.score:span.score,plan:'',via:'app'});
+    }
+  });
+  payloads.sort((a,b)=>a.block.localeCompare(b.block));
+  const first=pending.spans[0].start,last=pending.spans[pending.spans.length-1].end;
+  closeSpanSheet(false);
+  saveLogPayloads(payloads,first,bAdd(last,-30));
+}
+function logIt(options={}){
+  const raw=(S.text||'').trim()||'logged';
+  const split=splitPlan(raw),text=(split.text||raw).trim()||'logged';
+  if(split.plan)setPlan(split.plan);
+  if(!options.skipSpanCheck&&raw!==S.spanDismissText){
+    const spans=parseSpans(text,S.block);
+    if(spans){S.text=text;document.getElementById('log-text').value=text;drawPlanLine();drawSaveState();openSpanSheet(spans);return}
+  }
+  if(text!==S.text){S.text=text;document.getElementById('log-text').value=text}
+  const counts=[1,2,3,5],blocks=[];
+  for(let i=0;i<counts[S.ahead||0];i++)blocks.push(bAdd(S.block,30*i));
+  const payloads=[];
+  blocks.forEach((block,i)=>{if(i===0||!entryAt(block))payloads.push({block,text,score:S.score,plan:i===blocks.length-1?cleanPlan(S.plan):'',via:'app'})});
+  saveLogPayloads(payloads,S.block,payloads.length?payloads[payloads.length-1].block:S.block);
 }
 function isPending(b){
   if(entryAt(b)||b>floorBlock(Date.now()-1800000))return false;
@@ -742,9 +979,10 @@ function sameAgain(){
   if(!last){document.getElementById('log-text').focus();return}
   S.text=last.text;S.score=+last.score;
   document.getElementById('log-text').value=S.text;
-  document.getElementById('log-dial').innerHTML=scoreDial(S.score);
+  drawLogScore();
   drawSaveState();
-  hh('confirm');
+  if(entryAt(S.block)){hh('confirm');return} // a saved half hour is only filled in, so one stray press can't replace it
+  logIt({skipSpanCheck:true});
 }
 
 /* ---------- nudge ---------- */
@@ -778,31 +1016,74 @@ function renderNudge(){
   btn.classList.toggle('done',!!done);
   if(done)document.getElementById('nun-last').innerHTML='logged: <b>'+esc(done.text)+'</b> · '+done.score;
 }
-function spinDisc(){
-  const plat=document.getElementById('nun-plat'),hit=document.getElementById('nun-hit'),svg=document.getElementById('nun-disc');
-  const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const IDLE=12;
-  let ang=0,v=still?0:IDLE,dir=1,held=false,last=performance.now(),trail=[];
-  const draw=()=>plat.setAttribute('transform',`rotate(${ang.toFixed(2)} ${C} ${C})`);
-  const ptr=e=>{const r=svg.getBoundingClientRect();return Math.atan2(e.clientY-(r.top+r.height/2),e.clientX-(r.left+r.width/2))*180/Math.PI};
-  let prev=0;
-  hit.style.cursor='grab';hit.style.touchAction='none';
-  hit.addEventListener('pointerdown',e=>{try{hit.setPointerCapture(e.pointerId)}catch(_){}held=true;prev=ptr(e);trail=[[performance.now(),ang]];hit.style.cursor='grabbing';e.preventDefault()});
-  hit.addEventListener('pointermove',e=>{if(!held)return;let p=ptr(e),d=p-prev;if(d>180)d-=360;if(d<-180)d+=360;prev=p;ang+=d;tickTurn(d);draw();
-    const t=performance.now();trail.push([t,ang]);while(trail.length>2&&t-trail[0][0]>90)trail.shift()});
-  const letGo=()=>{if(!held)return;held=false;hit.style.cursor='grab';
-    const t=performance.now(),f=trail[0],dt=(t-f[0])/1000;let fling=dt>0?(ang-f[1])/dt:0;
-    if(t-trail[trail.length-1][0]>120)fling=0;
-    fling=Math.max(-1440,Math.min(1440,fling));
-    if(Math.abs(fling)>20)dir=Math.sign(fling);
-    v=still?0:(Math.abs(fling)>Math.abs(IDLE)?fling:dir*IDLE)};
-  ['pointerup','pointercancel','lostpointercapture'].forEach(n=>hit.addEventListener(n,letGo));
-  hit.addEventListener('keydown',e=>{if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;dir=e.key==='ArrowRight'?1:-1;v=still?0:dir*540;if(still){ang+=dir*30;draw()}e.preventDefault()});
-  let prevAng=0;
-  const tick=t=>{const dt=Math.min(.05,(t-last)/1000);last=t;
-    if(!held&&v){const target=still?0:dir*IDLE;v=target+(v-target)*Math.exp(-dt*1.1);ang+=v*dt;draw()}
-    requestAnimationFrame(tick)};
-  draw();requestAnimationFrame(tick);
+let logSpinState=null;
+function startLogSpin(){
+  const s=logSpinState;if(!s||s.active||S.screen!=='log'||document.hidden)return;
+  s.active=true;s.last=performance.now();s.lastDraw=0;
+  const tick=t=>{
+    if(!s.active)return;
+    const dt=Math.min(.05,Math.max(0,(t-s.last)/1000));s.last=t;
+    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const target=S.recordHeld?198:(reduced?0:s.dir*12);
+    if(reduced&&target===0)s.v=0;
+    else s.v=target+(s.v-target)*Math.exp(-dt*1.1);
+    if(s.drag!=='platter'&&s.v){s.angle+=s.v*dt;if(Math.abs(s.angle)>1e6)s.angle%=360}
+    if(t-s.lastDraw>=33){drawLogPlatter(s.angle);s.lastDraw=t}
+    s.frame=requestAnimationFrame(tick);
+  };
+  s.frame=requestAnimationFrame(tick);
+}
+function stopLogSpin(){
+  const s=logSpinState;if(!s||!s.active)return;
+  s.active=false;cancelAnimationFrame(s.frame);s.frame=0;
+}
+function spinLog(){
+  if(!logSpinState){
+    const hit=document.getElementById('log-hit'),svg=document.getElementById('log-disc');
+    const s=logSpinState={angle:0,v:12,dir:1,drag:'',previous:0,trail:[],last:0,lastDraw:0,frame:0,active:false};
+    const point=e=>{const r=svg.getBoundingClientRect();return {x:(e.clientX-(r.left+r.width/2))*330/r.width,y:(e.clientY-(r.top+r.height/2))*330/r.width}};
+    const angle=p=>Math.atan2(p.x,-p.y)*180/Math.PI;
+    const scoreAt=(p)=>{
+      const a=angle(p),n=Math.max(1,Math.min(5,Math.round((a+135)/67.5)+1));return n;
+    };
+    hit.style.cursor='grab';hit.style.touchAction='none';
+    hit.addEventListener('pointerdown',e=>{
+      const p=point(e),radius=Math.hypot(p.x,p.y),knobAngle=(-135+(S.score-1)*67.5)*Math.PI/180;
+      const knobX=80*Math.sin(knobAngle),knobY=-80*Math.cos(knobAngle);
+      if(Math.hypot(p.x-knobX,p.y-knobY)<=30)s.drag='score';
+      else if(radius>=53&&radius<=150)s.drag='platter';
+      else return;
+      try{hit.setPointerCapture(e.pointerId)}catch(_){}
+      if(s.drag==='platter'){s.previous=angle(p);s.trail=[[performance.now(),s.angle]];hit.style.cursor='grabbing'}
+      else setLogScore(scoreAt(p),true);
+      e.preventDefault();
+    });
+    hit.addEventListener('pointermove',e=>{
+      if(!s.drag)return;
+      const p=point(e);
+      if(s.drag==='score'){setLogScore(scoreAt(p),true);return}
+      const a=angle(p);let d=a-s.previous;if(d>180)d-=360;if(d<-180)d+=360;s.previous=a;s.angle+=d;tickTurn(d);
+      const t=performance.now();s.trail.push([t,s.angle]);while(s.trail.length>2&&t-s.trail[0][0]>90)s.trail.shift();
+      drawLogPlatter(s.angle);
+    });
+    const letGo=()=>{
+      if(!s.drag)return;
+      if(s.drag==='platter'){
+        const t=performance.now(),f=s.trail[0],dt=f?(t-f[0])/1000:0;let fling=dt>0?(s.angle-f[1])/dt:0;
+        if(!s.trail.length||t-s.trail[s.trail.length-1][0]>120)fling=0;
+        fling=Math.max(-1440,Math.min(1440,fling));if(Math.abs(fling)>20)s.dir=Math.sign(fling);
+        s.v=matchMedia('(prefers-reduced-motion: reduce)').matches?0:(Math.abs(fling)>12?fling:s.dir*12);
+      }
+      s.drag='';hit.style.cursor='grab';
+    };
+    ['pointerup','pointercancel','lostpointercapture'].forEach(n=>hit.addEventListener(n,letGo));
+    hit.addEventListener('keydown',e=>{
+      const d={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1}[e.key];if(!d)return;
+      setLogScore(Math.max(1,Math.min(5,S.score+d)),false);e.preventDefault();
+    });
+    drawLogPlatter(s.angle);
+  }
+  startLogSpin();
 }
 function nudgeSame(){
   const b=S.nudgeBlock;
@@ -1309,6 +1590,7 @@ function go(name){
   if(name==='week')S.weekEnd=dateKey(new Date());
   if(name==='time'){S.timeMode='week';S.timeEnd=dateKey(new Date())}
   S.screen=name;
+  if(name==='log')startLogSpin();else stopLogSpin();
   navSync(name);
   document.querySelectorAll('.screen').forEach(el=>el.classList.toggle('on',el.id==='s-'+name));
   document.getElementById('nav').style.display='block';
@@ -1329,7 +1611,7 @@ function openToday(day){
     const old=go;S.todayDay=day||dateKey(new Date());old('today');S.todayDay=day||dateKey(new Date());renderToday();
   }
 }
-function closeSheetQuiet(){const sh=document.getElementById('sheet');if(sh&&!sh.hidden){sh.hidden=true;S.sel=[];S.sheetSel=[]}}
+function closeSheetQuiet(){const sh=document.getElementById('sheet');if(sh&&!sh.hidden){sh.hidden=true;S.sel=[];S.sheetSel=[]}const spans=document.getElementById('span-sheet');if(spans&&!spans.hidden)closeSpanSheet(false)}
 function HHopen(block){
   if(!block)return;
   go('log');
@@ -1349,15 +1631,16 @@ function wire(){
 
   document.getElementById('log-save').addEventListener('click',logIt);
   document.getElementById('log-same').addEventListener('click',()=>sameAgain());
+  document.getElementById('span-x').addEventListener('click',()=>closeSpanSheet(true));
+  document.getElementById('span-ok').addEventListener('click',confirmSpanSheet);
   document.getElementById('log-prev').addEventListener('click',()=>stepLog(-30));
   document.getElementById('log-next').addEventListener('click',()=>stepLog(30));
   document.getElementById('log-block').addEventListener('click',()=>{hh('confirm');openLog(floorBlock(Date.now()))});
   document.addEventListener('pointerdown',()=>{S.lastTouch=Date.now()},{passive:true});
   bindHold(document.getElementById('log-rec'),()=>beginSpeech('log'),endSpeech);
 
-  const hit=document.getElementById('log-hit');
-  drag(hit,(e)=>setLogScore(scoreFromPoint(hit,e),true));
-  hit.addEventListener('keydown',e=>{const d={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1}[e.key];if(!d)return;setLogScore(Math.max(1,Math.min(5,S.score+d)),false);e.preventDefault()});
+  spinLog();
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopLogSpin();else if(S.screen==='log')startLogSpin()});
 
   const sl=document.getElementById('log-slider');
   const setFrom=e=>{const r=sl.getBoundingClientRect(),x=(e.clientX-r.left)*(352/r.width);
