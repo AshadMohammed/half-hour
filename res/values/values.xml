@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Half Hour</string>
+
+    <color name="hh_body">#C9CACB</color>
+    <color name="hh_face">#D8D9DA</color>
+    <color name="hh_ink">#2A2B2D</color>
+    <color name="hh_orange">#FF5A1F</color>
+    <color name="hh_disc">#A9AAAD</color>
+
+    <style name="HH" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@color/hh_body</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>
