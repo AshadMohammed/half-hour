@@ -59,12 +59,17 @@ public final class MainActivity extends Activity {
     private static final long HARD_STOP_MS = 6000L;   // nothing may run on past this after a release
     private final Handler main = new Handler(Looper.getMainLooper());
     private int session;
+    private int round;
     private long readyAt;   // uptime of onReadyForSpeech for the current session, 0 until it comes
     private long releaseAt; // uptime of the finger lifting, 0 while it is still down
     private boolean active;     // startListening has been called and no result or error has come back
     private boolean stopPosted; // a stopListening is already scheduled for this session
     private boolean stopped;    // stopListening has been called for this session
+    private boolean finalSent;
     private String lastPartial = "";
+    private String heard = "";
+    private Runnable restartRound;
+    private Runnable holdLimit;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -178,6 +183,12 @@ public final class MainActivity extends Activity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        if (session != 0 && releaseAt == 0L) stopSpeech(); // the mic never runs on behind the app
+    }
+
+    @Override
     protected void onDestroy() {
         if (recognizer != null) {
             try { recognizer.destroy(); } catch (Exception ignored) {}
@@ -264,6 +275,14 @@ public final class MainActivity extends Activity {
             final int id = session;
             if (releaseAt == 0L) releaseAt = SystemClock.uptimeMillis();
             Dbg.log("release, session " + id + ", ready=" + (readyAt != 0L));
+            if (restartRound != null) {
+                main.removeCallbacks(restartRound);
+                restartRound = null;
+                if (!active) {
+                    finishHeardOrError(id);
+                    return;
+                }
+            }
             postStop(id);
             main.postDelayed(() -> {
                 if (id != session || stopped || !active) return;
@@ -313,25 +332,83 @@ public final class MainActivity extends Activity {
         }
         session++;
         final int id = session;
+        if (restartRound != null) main.removeCallbacks(restartRound);
+        restartRound = null;
+        heard = "";
+        finalSent = false;
+        if (holdLimit != null) main.removeCallbacks(holdLimit);
+        holdLimit = () -> { if (id == session && releaseAt == 0L) stopSpeech(); };
+        main.postDelayed(holdLimit, 180000L);
         readyAt = 0L;
         releaseAt = 0L;
         stopPosted = false;
         stopped = false;
         lastPartial = "";
-        recognizer.setRecognitionListener(new Listener(id));
+        startRound(id, true);
+    }
+
+    private void startRound(final int id, boolean first) {
+        if (id != session || releaseAt != 0L) return;
+        round++;
+        final int thisRound = round;
+        readyAt = 0L;
+        active = false;
+        stopPosted = false;
+        stopped = false;
+        lastPartial = "";
+        recognizer.setRecognitionListener(new Listener(id, first));
         try {
             Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
             i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
             i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
             i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
-            i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200);
-            callJs("HHcb.speechState('starting')");
+            i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 4000);
+            i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 4000);
+            if (first) callJs("HHcb.speechState('starting')");
             recognizer.startListening(i);
             active = true;
-            Dbg.log("startListening, session " + id);
+            Dbg.log("startListening, session " + id + ", round " + thisRound);
         } catch (Exception e) {
-            Dbg.log("startListening failed, session " + id + ", " + e);
-            callJs("HHcb.speechError(" + JSONObject.quote(NO_SERVICE) + ")");
+            Dbg.log("startListening failed, session " + id + ", round " + thisRound + ", " + e);
+            if (heard.length() > 0) sendFinal(id, heard);
+            else callJs("HHcb.speechError(" + JSONObject.quote(NO_SERVICE) + ")");
+        }
+    }
+
+    private void queueNextRound(final int id) {
+        queueNextRound(id, 50L);
+    }
+
+    private void queueNextRound(final int id, long delay) {
+        if (id != session || releaseAt != 0L) return;
+        restartRound = () -> {
+            restartRound = null;
+            if (id == session && releaseAt == 0L) startRound(id, false);
+        };
+        main.postDelayed(restartRound, delay);
+    }
+
+    private void appendHeard(String text) {
+        if (text == null || text.trim().isEmpty()) return;
+        heard = heard.isEmpty() ? text.trim() : heard + " " + text.trim();
+    }
+
+    private void sendFinal(int id, String text) {
+        if (id != session || finalSent) return;
+        finalSent = true;
+        if (holdLimit != null) main.removeCallbacks(holdLimit);
+        callJs("HHcb.finalText(" + JSONObject.quote(text == null ? "" : text) + ")");
+        callJs("HHcb.speechState('idle')");
+    }
+
+    private void finishHeardOrError(int id) {
+        if (!heard.isEmpty()) sendFinal(id, heard);
+        else {
+            if (id == session && !finalSent) {
+                finalSent = true;
+                if (holdLimit != null) main.removeCallbacks(holdLimit);
+                callJs("HHcb.speechError(" + JSONObject.quote(errorText(SpeechRecognizer.ERROR_NO_MATCH)) + ")");
+            }
         }
     }
 
@@ -361,23 +438,29 @@ public final class MainActivity extends Activity {
 
     private final class Listener implements RecognitionListener {
         private final int id;
+        private final int thisRound;
+        private final boolean isFirstRound;
         private boolean rmsLogged;
 
-        Listener(int id) {
+        Listener(int id, boolean isFirstRound) {
             this.id = id;
+            this.thisRound = round;
+            this.isFirstRound = isFirstRound;
         }
 
         /** A newer hold has started, so this one's late callbacks are not wanted. */
         private boolean stale() {
-            return id != session;
+            return id != session || thisRound != round;
         }
 
         @Override public void onReadyForSpeech(Bundle b) {
             Dbg.log("onReadyForSpeech, session " + id);
             if (stale()) return;
             readyAt = SystemClock.uptimeMillis();
-            callJs("HHcb.speechState('ready')");
-            haptic("confirm"); // you feel the moment to talk
+            if (isFirstRound) {
+                callJs("HHcb.speechState('ready')");
+                haptic("confirm"); // he feels the moment to talk
+            }
             postStop(id);      // the finger may already be up
         }
 
@@ -405,7 +488,7 @@ public final class MainActivity extends Activity {
             Dbg.log("onPartialResults, session " + id + ", len " + t.length());
             if (stale() || t.isEmpty()) return;
             lastPartial = t;
-            callJs("HHcb.partial(" + JSONObject.quote(t) + ")");
+            callJs("HHcb.partial(" + JSONObject.quote(heard.isEmpty() ? t : heard + " " + t) + ")");
         }
 
         @Override public void onResults(Bundle b) {
@@ -416,18 +499,41 @@ public final class MainActivity extends Activity {
                 Dbg.log("onResults dropped, session " + id + " is not " + session);
                 return;
             }
+            round++; // ignore any duplicate callbacks from this recognizer round
             active = false;
-            if (t.isEmpty()) t = lastPartial; // a final with no words still carries what was heard
-            callJs("HHcb.finalText(" + JSONObject.quote(t) + ")");
-            callJs("HHcb.speechState('idle')");
+            if (t.isEmpty()) t = lastPartial;
+            if (releaseAt == 0L) {
+                appendHeard(t);
+                Dbg.log("round complete, session " + id + ", round " + thisRound + ", len " + t.length());
+                queueNextRound(id);
+            } else {
+                sendFinal(id, (heard.isEmpty() ? "" : heard + (t.isEmpty() ? "" : " ")) + t);
+            }
         }
 
         @Override public void onError(int error) {
             Dbg.log("onError " + error + ", session " + id);
             if (stale()) return;
+            round++; // ignore any duplicate callbacks from this recognizer round
             active = false;
+            if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                if (releaseAt == 0L) {
+                    queueNextRound(id);
+                } else if (!heard.isEmpty()) {
+                    sendFinal(id, heard);
+                } else {
+                    finishHeardOrError(id);
+                }
+                return;
+            }
+            if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY && !isFirstRound && releaseAt == 0L) {
+                try { if (recognizer != null) recognizer.cancel(); } catch (Exception ignored) {}
+                queueNextRound(id, 250L); // the last round hasn't let go yet
+                return;
+            }
             String msg = errorText(error);
-            callJs("HHcb.speechError(" + JSONObject.quote(msg) + ")");
+            if (!heard.isEmpty()) sendFinal(id, heard);
+            else callJs("HHcb.speechError(" + JSONObject.quote(msg) + ")");
             if (error == SpeechRecognizer.ERROR_CLIENT
                     || error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY
                     || error == SpeechRecognizer.ERROR_SERVER_DISCONNECTED) {

@@ -1,6 +1,6 @@
 # Half Hour
 
-An Android app that asks one question every half hour: what did you just do? You answer in a few words, turn a dial from
+An Android app that asks one question every half hour: what did you just do? You answer in a few words, slide a score from
 1 to 5, and over a few days you get an honest picture of where your time goes.
 
 No account, no server, no internet permission. Your log is one text file on your phone.
@@ -13,17 +13,17 @@ Screenshots use the built-in sample data.
 
 ## What it does
 
-- **Log:** a ping on every :00 and :30. Type or hold the red key to speak, set a score, press log it. The screen opens on the
+- **Log:** a ping on every :00 and :30. Type, or hold the left key to speak (its orange lamp glows), set a score, press log it. The screen opens on the
   half hour you last left off and walks you forward through anything you missed. Same again repeats your last entry in one press.
-- **The disc:** it turns by itself. Pull it back or fling it with a finger, and it speeds up while you record. Only the small
-  knob changes the score.
+- **Keys and sliders:** three keys that press down for real: hold to talk, same again, log it. A thin slider sets the score. The recorder
+  drawing's reel turns while you record.
 - **Several half hours at once:** say or type "from 2 to 3 building, then coffee till 4". The app shows each span to check before
   it saves, and never overwrites an entry. This runs on the phone and reads clear English times; anything unclear saves as one entry.
-- **Log ahead:** about to do the same thing for a while? The slider saves the next 30 minutes, 1 hour or 2 hours too.
-- **Today:** a 24-hour dial with one bar per half hour. Tap a bar to read it. Hold and drag to pick several, then fill in the
-  empty ones together. Below it: high, medium and low productivity hours, time per category, and the day's log.
-- **Week:** hours and average score per day, and the time of day you do your best work.
-- **Time:** your top 8 activities as bubbles, by day or by week.
+- **Log ahead:** about to do the same thing for a while? The vertical fader saves the next 30 minutes, 1 hour or 2 hours too.
+- **Today:** a full grid, one cell per half hour. Tap a cell to read it. Drag across cells, or hold and drag, to pick several in
+  orange, then fill in the empty ones together. Below it: high, medium and low productivity hours, time per category, and the day's log.
+- **Week:** hours and average score per day, and the time of day you do your best work, with the best day and best hours in orange.
+- **Time:** your top 8 activities as one box split by time spent, by day or by week. A switch turns it into reel discs.
 - **Sleep:** no pings from 2 to 10 am, and those hours count as sleep on their own.
 
 The scale: 5 ultra productive, 4 fairly productive, 3 day-to-day upkeep, 2 less than that, 1 the worst.
@@ -62,8 +62,8 @@ The whole interface is one file, `assets/app.html`. Change it, run `./build.sh`,
 | Your categories | `actOf` in `assets/app.html`, a list of keywords per category |
 | Sleep hours | `quietA` and `quietB` in the page, `quietStart` and `quietEnd` in `Data.java` |
 | High, medium, low | the score checks in `renderToday` and `renderWeek` |
-| Number of bubbles | `TIME_BUBBLE_LIMIT` |
-| Colours | `OR`, `INK`, `FACE`, `WH` near the top of the script |
+| Number of activities in Time | `TIME_BUBBLE_LIMIT` |
+| Colours | the colour variables at the top of the page, first block of styles |
 
 A coding agent handles all of this well. Point it at this repo and describe what you want different.
 
